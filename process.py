@@ -40,10 +40,61 @@ def make_all_tests():
         cmd += args
         run(cmd)
 
+gdb_commands = '''\
+set logging file output/gdb_output.txt
+set logging on
+target remote :51000
+stepi
+stepi
+load
+break main
+break exit
+jump *_start
+monitor cyclecount
+cont
+monitor cyclecount
+disconnect
+quit'''
+
+def execute(test, instance, variant):
+    run(['rm', '-f', 'output/gdb_output.txt'])
+    run(['rm', '-f', 'output/gdb_commands.txt'])
+    gdb_lines = 'file output/test%d-%d-%d\n' % (test, instance, variant)
+    gdb_lines += gdb_commands
+    with open('output/gdb_commands.txt', 'w') as f:
+        f.write(gdb_lines)
+    cmd = [ 'riscv32-unknown-elf-gdb', '-x', 'output/gdb_commands.txt' ]
+    run(cmd)
+
+def parse_test(test, instance):
+    counts = []
+    found_start = False
+    with open('gdb_output/gdb_output_test%d-%d.txt' % (test, instance)) as f:
+        for line in f:
+            if is_cycle_count(line):
+                if found_start:
+                    end = int(line)
+                    found_start = False
+                    counts.append(end - start)
+                else:
+                    start = int(line)
+                    found_start = True
+    return counts
+
+
+
+def run_all_tests():
+    print("Running")
+    for ((test, instance, variant), _) in compile_args:
+        print("-", test, instance, variant)
+        execute(test, instance, variant)
+
+
 def main():
     clean()
     prepare(False)
     make_all_tests()
+    run_all_tests()
 
 if __name__ == '__main__':
     main()
