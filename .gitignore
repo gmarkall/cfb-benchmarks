@@ -1,3 +1,2 @@
-*.ll
-*.s
+output
 __pycache__
