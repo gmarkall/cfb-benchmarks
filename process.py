@@ -66,33 +66,42 @@ def execute(test, instance, variant):
     cmd = [ 'riscv32-unknown-elf-gdb', '-x', 'output/gdb_commands.txt' ]
     run(cmd)
 
-def parse_test(test, instance):
-    counts = []
+def is_cycle_count(line):
+    try:
+        int(line)
+        return True
+    except ValueError:
+        return False
+
+def parse_test(output_file):
     found_start = False
-    with open('gdb_output/gdb_output_test%d-%d.txt' % (test, instance)) as f:
+    with open(output_file) as f:
         for line in f:
             if is_cycle_count(line):
                 if found_start:
                     end = int(line)
-                    found_start = False
-                    counts.append(end - start)
+                    return end - start
                 else:
                     start = int(line)
                     found_start = True
-    return counts
 
 
 
 def run_all_tests():
     print("Running")
+    counts = {}
     for ((test, instance, variant), _) in compile_args:
         print("-", test, instance, variant)
         execute(test, instance, variant)
+        cycles = parse_test('output/gdb_output.txt')
+        counts[test, instance, variant] = cycles
 
+    import pprint
+    pprint.pprint(counts)
 
 def main():
     clean()
-    prepare(False)
+    prepare(True)
     make_all_tests()
     run_all_tests()
 
