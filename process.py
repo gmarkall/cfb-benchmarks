@@ -103,15 +103,18 @@ def compute_stats(counts):
     tests = set([ v[0][0] for v in compile_args ])
     stats = []
     for test in tests:
-        input_variant = 0 # temp for now - will do all sets later
-        keys = [ k for k in counts if (k[2] == input_variant and k[0] == test) ]
-        values = []
-        for k in keys:
-            values.append(counts[k])
-        sd = np.std(values)
-        mean = np.mean(values)
-        rsd = (sd / mean) * 100
-        stats.append((test, sd, mean, rsd))
+        #input_variant = 0 # temp for now - will do all sets later
+        keys = [ k for k in counts if k[0] == test ]
+        variants = set([ k[2] for k in keys])
+        for v in variants:
+            values = []
+            subkeys = [ k for k in keys if k[2] == v ]
+            for k in subkeys:
+                values.append(counts[k])
+            sd = np.std(values)
+            mean = np.mean(values)
+            rsd = (sd / mean) * 100
+            stats.append((test, v, sd, mean, rsd))
     return stats
 
 def main():
@@ -135,16 +138,6 @@ def main():
     print(compute_stats(balanced_counts))
     print(compute_stats(unbalanced_counts))
 
-    #for k in sorted(balanced_counts):
-    #    if k[2] != 0:
-    #        continue
-    #    print("%d-%d" % (k[0], k[1]), balanced_counts[k], unbalanced_counts[k])
-
-# Processing:
-
-# For each benchmark
-#  For balanced / unbalanced
-#    Compute stddev, avg and RSD of the cycle counts of all instances
 
 if __name__ == '__main__':
     main()
