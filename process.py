@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import numpy as np
 import os
 import subprocess
 
@@ -96,14 +97,54 @@ def run_all_tests():
         cycles = parse_test('output/gdb_output.txt')
         counts[test, instance, variant] = cycles
 
-    import pprint
-    pprint.pprint(counts)
+    return counts
+
+def compute_stats(counts):
+    tests = set([ v[0][0] for v in compile_args ])
+    stats = []
+    for test in tests:
+        input_variant = 0 # temp for now - will do all sets later
+        keys = [ k for k in counts if (k[2] == input_variant and k[0] == test) ]
+        values = []
+        for k in keys:
+            values.append(counts[k])
+        sd = np.std(values)
+        mean = np.mean(values)
+        rsd = (sd / mean) * 100
+        stats.append((test, sd, mean, rsd))
+    return stats
 
 def main():
     clean()
     prepare(True)
     make_all_tests()
-    run_all_tests()
+    balanced_counts = run_all_tests()
+
+    clean()
+    prepare(False)
+    make_all_tests()
+    unbalanced_counts = run_all_tests()
+
+    # Sanity check - boths dicts should have the same keys:
+    if sorted(balanced_counts) != sorted(unbalanced_counts):
+        raise RuntimeError('Balanced and unbalanced counts have different keys')
+
+    #from IPython import embed
+    #embed()
+
+    print(compute_stats(balanced_counts))
+    print(compute_stats(unbalanced_counts))
+
+    #for k in sorted(balanced_counts):
+    #    if k[2] != 0:
+    #        continue
+    #    print("%d-%d" % (k[0], k[1]), balanced_counts[k], unbalanced_counts[k])
+
+# Processing:
+
+# For each benchmark
+#  For balanced / unbalanced
+#    Compute stddev, avg and RSD of the cycle counts of all instances
 
 if __name__ == '__main__':
     main()
