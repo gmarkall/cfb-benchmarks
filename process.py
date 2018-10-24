@@ -7,6 +7,7 @@ import pickle
 import matplotlib.pyplot as plt
 
 from compile_args import compile_args
+from itertools import islice, takewhile, repeat
 
 def run(cmd, **kwargs):
     print(" ".join(cmd))
@@ -119,44 +120,94 @@ def compute_stats(counts):
             stats.append((test, v, sd, mean, rsd))
     return stats
 
-def do_whole_plot(balanced_stats, unbalanced_stats):
+def do_one_plot(balanced_stats, unbalanced_stats):
     x = range(len(balanced_stats))
-    xticks = [ '%d-%d' % (k[0], k[1]) for k in unbalanced_stats ]
     y1 = [ k[4] for k in unbalanced_stats ]
     y2 = [ k[4] for k in balanced_stats ]
 
-    plt.xticks(x, xticks, rotation=45)
-    plt.plot(x, y1, 'r-', y2)
-    plt.xlabel('Testcase-Input')
-    plt.ylabel('RSD between branch timings')
+    res = plt.plot(x, y1, 'ro', y2, 'bo')
+    plt.legend(res, ['Unbalanced', 'Balanced'])
+    plt.xlabel('Input')
+    plt.ylabel('% Stddev between branch timings')
     plt.title('Deviation between branch timings')
     plt.show()
 
-def main():
-    clean()
-    prepare(True)
-    make_all_tests()
-    balanced_counts = run_all_tests()
+def split_every(n, it):
+    it = iter(it)
+    return takewhile(bool, (list(islice(it, n)) for _ in repeat(None)))
 
-    clean()
-    prepare(False)
-    make_all_tests()
-    unbalanced_counts = run_all_tests()
+def do_whole_plot(balanced_stats, unbalanced_stats):
+    # All this faff with loops and splitting is required to get discontinuities
+    x = range(len(balanced_stats))
+    y1 = [ k[4] for k in unbalanced_stats ]
+    y2 = [ k[4] for k in balanced_stats ]
 
-    # Sanity check - boths dicts should have the same keys:
-    if sorted(balanced_counts) != sorted(unbalanced_counts):
-        raise RuntimeError('Balanced and unbalanced counts have different keys')
+#    xs = []
+#    for i in split_every(10, x):
+#        xs.append(i)
+#
+#    y1s = []
+#    for i in split_every(10, y1):
+#        y1s.append(i)
+#
+#    y2s = []
+#    for i in split_every(10, y2):
+#        y2s.append(i)
+#
+#    for i in range(len(xs)):
+#        print(xs[i])
+#        res1 = plt.plot(xs[i], y1s[i], 'ro')#, y2s[i], 'b.-')
+#        res2 = plt.plot(xs[i], y2s[i], 'bo')#, y2s[i], 'b.-')
 
-    balanced_stats = compute_stats(balanced_counts)
-    unbalanced_stats = compute_stats(unbalanced_counts)
+    res = plt.plot(x, y1, 'ro', y2, 'bo')
+    plt.legend((res), ['Unbalanced', 'Balanced'])
+    #plt.legend((res1, res2), ['Unbalanced', 'Balanced'])
+    plt.xlabel('Testcases and Inputs')
+    plt.tick_params(axis='x', which='both', bottom=False, top=False,
+        labelbottom=False)
+    plt.ylabel('% Stddev between branch timings')
+    for i in range(1, 13):
+        plt.text((i-1)*10+4, 52, '%s' % i)
+    plt.title('Deviation between branch timings')
+    for i in range(13):
+        plt.axvline(x=(i*10-0.5), color=(0.5, 0.5, 0.5, 0.5))
+    plt.show()
 
-    with open('stats.dump', 'wb') as f:
-        pickle.dump((balanced_counts, unbalanced_counts, balanced_stats, unbalanced_stats), f)
+def main(run_benchmarks=True):
+    if run_benchmarks:
+        clean()
+        prepare(True)
+        make_all_tests()
+        balanced_counts = run_all_tests()
 
-    from IPython import embed
-    embed()
+        clean()
+        prepare(False)
+        make_all_tests()
+        unbalanced_counts = run_all_tests()
+
+        # Sanity check - boths dicts should have the same keys:
+        if sorted(balanced_counts) != sorted(unbalanced_counts):
+            raise RuntimeError('Balanced and unbalanced counts have different keys')
+
+        balanced_stats = compute_stats(balanced_counts)
+        unbalanced_stats = compute_stats(unbalanced_counts)
+
+        with open('stats.dump', 'wb') as f:
+            pickle.dump((balanced_counts, unbalanced_counts, balanced_stats, unbalanced_stats), f)
+    else:
+        with open('stats.dump', 'rb') as f:
+            balanced_counts, unbalanced_counts, balanced_stats, unbalanced_stats = pickle.load(f)
+
+
+    balanced_0_only = [ v for v in balanced_stats if v[1] == 0 ]
+    unbalanced_0_only = [ v for v in unbalanced_stats if v[1] == 0 ]
+
+    #from IPython import embed
+    #embed()
+
+    do_one_plot(balanced_0_only, unbalanced_0_only)
 
     do_whole_plot(balanced_stats, unbalanced_stats)
 
 if __name__ == '__main__':
-    main()
+    main(False)
