@@ -3,6 +3,8 @@
 import numpy as np
 import os
 import subprocess
+import pickle
+import matplotlib.pyplot as plt
 
 from compile_args import compile_args
 
@@ -117,6 +119,19 @@ def compute_stats(counts):
             stats.append((test, v, sd, mean, rsd))
     return stats
 
+def do_whole_plot(balanced_stats, unbalanced_stats):
+    x = range(len(balanced_stats))
+    xticks = [ '%d-%d' % (k[0], k[1]) for k in unbalanced_stats ]
+    y1 = [ k[4] for k in unbalanced_stats ]
+    y2 = [ k[4] for k in balanced_stats ]
+
+    plt.xticks(x, xticks, rotation=45)
+    plt.plot(x, y1, 'r-', y2)
+    plt.xlabel('Testcase-Input')
+    plt.ylabel('RSD between branch timings')
+    plt.title('Deviation between branch timings')
+    plt.show()
+
 def main():
     clean()
     prepare(True)
@@ -132,12 +147,16 @@ def main():
     if sorted(balanced_counts) != sorted(unbalanced_counts):
         raise RuntimeError('Balanced and unbalanced counts have different keys')
 
-    #from IPython import embed
-    #embed()
+    balanced_stats = compute_stats(balanced_counts)
+    unbalanced_stats = compute_stats(unbalanced_counts)
 
-    print(compute_stats(balanced_counts))
-    print(compute_stats(unbalanced_counts))
+    with open('stats.dump', 'wb') as f:
+        pickle.dump((balanced_counts, unbalanced_counts, balanced_stats, unbalanced_stats), f)
 
+    from IPython import embed
+    embed()
+
+    do_whole_plot(balanced_stats, unbalanced_stats)
 
 if __name__ == '__main__':
     main()
